@@ -1,0 +1,56 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Diversity Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTS5_nhv5uB8ROjFToPSJzK4GrmHIIFPFetBXs7msRJslpfoSd490nhd_7RliFeji4P5bmOLYToFE09/pub?output=csv";
+
+    async function fetchData() {
+      const res = await fetch(CSV_URL);
+      const text = await res.text();
+      const rows = text.trim().split("\n").slice(1);
+
+      const data = rows.map(row => {
+        const parts = row.split(",");
+        return {
+          address: parts[1],
+          name: parts[2],
+          lat: parseFloat(parts[3]),
+          lng: parseFloat(parts[4])
+        };
+      });
+
+      return data;
+    }
+
+    async function initMap() {
+      const map = L.map("map").setView([20, 0], 2);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      const points = await fetchData();
+      points.forEach(p => {
+        if (!isNaN(p.lat) && !isNaN(p.lng)) {
+          L.marker([p.lat, p.lng])
+            .addTo(map)
+            .bindPopup(`<strong>${p.name || "Anonymous"}</strong><br>${p.address}`);
+        }
+      });
+    }
+
+    initMap();
+  </script>
+</body>
+</html>
