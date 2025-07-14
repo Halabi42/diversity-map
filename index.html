@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -12,40 +11,41 @@
 </head>
 <body>
   <div id="map"></div>
+
+  <!-- Leaflet.js -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <!-- PapaParse for safe CSV parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+
   <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTS5_nhv5uB8ROjFToPSJzK4GrmHIIFPFetBXs7msRJslpfoSd490nhd_7RliFeji4P5bmOLYToFE09/pub?output=csv";
 
-    async function fetchData() {
-      const res = await fetch(CSV_URL);
-      const text = await res.text();
-      const rows = text.trim().split("\n").slice(1);
-
-      const data = rows.map(row => {
-        const parts = row.split(",");
-        return {
-          address: parts[1],
-          name: parts[2],
-          lat: parseFloat(parts[3]),
-          lng: parseFloat(parts[4])
-        };
-      });
-
-      return data;
+    async function fetchCSV() {
+      const response = await fetch(CSV_URL);
+      const csvText = await response.text();
+      const results = Papa.parse(csvText, { header: true });
+      return results.data;
     }
 
     async function initMap() {
       const map = L.map("map").setView([20, 0], 2);
+
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
 
-      const points = await fetchData();
-      points.forEach(p => {
-        if (!isNaN(p.lat) && !isNaN(p.lng)) {
-          L.marker([p.lat, p.lng])
+      const data = await fetchCSV();
+
+      data.forEach(row => {
+        const lat = parseFloat(row["Latitude"]);
+        const lng = parseFloat(row["Longitude"]);
+        const name = row["Name"] || "Anonymous";
+        const address = row["Birthplace address"] || "Unknown";
+
+        if (!isNaN(lat) && !isNaN(lng)) {
+          L.marker([lat, lng])
             .addTo(map)
-            .bindPopup(`<strong>${p.name || "Anonymous"}</strong><br>${p.address}`);
+            .bindPopup(`<strong>${name}</strong><br>${address}`);
         }
       });
     }
@@ -54,3 +54,4 @@
   </script>
 </body>
 </html>
+
