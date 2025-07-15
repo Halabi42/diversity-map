@@ -1,58 +1,69 @@
-<script>
-  const CSV_URL = "https://docs.google.com/spreadsheets/d/188Qlg350k2YXtTGfgHHntNyloPwSByV5YInf9EIUmio/gviz/tq?tqx=out:csv&sheet=Form%20Responses%201";
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Diversity Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
 
-  async function fetchCSV() {
-    const response = await fetch(CSV_URL);
-    const csvText = await response.text();
-    const results = Papa.parse(csvText, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: h => h.trim()
-    });
-    return results.data;
-  }
+  <!-- Leaflet.js -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <!-- PapaParse for safe CSV parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 
-  async function initMap() {
-    const map = L.map("map").setView([20, 0], 2);
+  <script>
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTS5_nhv5uB8ROjFToPSJzK4GrmHIIFPFetBXs7msRJslpfoSd490nhd_7RliFeji4P5bmOLYToFE09/pub?output=csv";
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    async function fetchCSV() {
+      const response = await fetch(CSV_URL);
+      const csvText = await response.text();
+      const results = Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: h => h.trim() // ⚠️ this is the critical fix
+      });
+      return results.data;
+    }
 
-    try {
+    async function initMap() {
+      const map = L.map("map").setView([20, 0], 2);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
       const data = await fetchCSV();
-      let markerCount = 0;
+
+      console.log("CSV Data:", data);
 
       data.forEach((row, i) => {
-        const latRaw = row["Latitude"];
-        const lngRaw = row["Longitude"];
-        const lat = parseFloat(latRaw);
-        const lng = parseFloat(lngRaw);
-        const name = row["Name, and Date of Birth (Optional)"] || `Entry ${i + 1}`;
-        const address = row["Birthplace address (Country, City, State)"] || "Unknown";
+        const lat = parseFloat(row["Latitude"]);
+        const lng = parseFloat(row["Longitude"]);
+        const name = row["Name, and Date of Birth (Optional)"];
+        const address = row["Birthplace address (Country, City, State)"];
 
         if (!isNaN(lat) && !isNaN(lng)) {
+          console.log(`Adding marker: ${name || "Unnamed"} at (${lat}, ${lng})`);
           L.marker([lat, lng])
             .addTo(map)
-            .bindPopup(`<strong>${name}</strong><br>${address}`);
-          markerCount++;
+            .bindPopup(`<strong>${name || "Anonymous"}</strong><br>${address || "Unknown"}`);
         } else {
-          console.warn(`Skipping row ${i + 1} — invalid lat/lng`, {
-            latRaw, lngRaw, row
-          });
+          console.warn(`Invalid coordinates at row ${i + 1}`, row);
         }
       });
-
-      console.log(`✅ Loaded ${markerCount} markers`);
-      if (markerCount === 0) {
-        alert("No valid location data found. Please check your spreadsheet.");
-      }
-
-    } catch (err) {
-      console.error("Error loading or parsing CSV:", err);
-      alert("⚠️ Failed to load map data.");
     }
-  }
 
-  initMap();
-</script>
+    initMap();
+  </script>
+</body>
+</html>
