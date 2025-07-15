@@ -1,54 +1,33 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Diversity Map</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <style>
-    html, body, #map {
-      height: 100%;
-      margin: 0;
-      font-family: Arial, sans-serif;
-    }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
+<script>
+  const CSV_URL = "https://docs.google.com/spreadsheets/d/188Qlg350k2YXtTGfgHHntNyloPwSByV5YInf9EIUmio/gviz/tq?tqx=out:csv&sheet=Form%20Responses%201";
 
-  <!-- Leaflet.js -->
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <!-- PapaParse for CSV parsing -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+  async function fetchCSV() {
+    const response = await fetch(CSV_URL);
+    const csvText = await response.text();
+    const results = Papa.parse(csvText, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: h => h.trim()
+    });
+    return results.data;
+  }
 
-  <script>
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/188Qlg350k2YXtTGfgHHntNyloPwSByV5YInf9EIUmio/gviz/tq?tqx=out:csv&sheet=Form%20Responses%201";
+  async function initMap() {
+    const map = L.map("map").setView([20, 0], 2);
 
-    async function fetchCSV() {
-      const response = await fetch(CSV_URL);
-      const csvText = await response.text();
-      const results = Papa.parse(csvText, {
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: h => h.trim()
-      });
-      return results.data;
-    }
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
 
-    async function initMap() {
-      const map = L.map("map").setView([20, 0], 2);
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
-
+    try {
       const data = await fetchCSV();
-
-      console.log("Loaded data:", data);
+      let markerCount = 0;
 
       data.forEach((row, i) => {
-        const lat = parseFloat(row["Latitude"]);
-        const lng = parseFloat(row["Longitude"]);
+        const latRaw = row["Latitude"];
+        const lngRaw = row["Longitude"];
+        const lat = parseFloat(latRaw);
+        const lng = parseFloat(lngRaw);
         const name = row["Name, and Date of Birth (Optional)"] || `Entry ${i + 1}`;
         const address = row["Birthplace address (Country, City, State)"] || "Unknown";
 
@@ -56,13 +35,24 @@
           L.marker([lat, lng])
             .addTo(map)
             .bindPopup(`<strong>${name}</strong><br>${address}`);
+          markerCount++;
         } else {
-          console.warn(`Invalid coordinates at row ${i + 1}:`, row);
+          console.warn(`Skipping row ${i + 1} — invalid lat/lng`, {
+            latRaw, lngRaw, row
+          });
         }
       });
-    }
 
-    initMap();
-  </script>
-</body>
-</html>
+      console.log(`✅ Loaded ${markerCount} markers`);
+      if (markerCount === 0) {
+        alert("No valid location data found. Please check your spreadsheet.");
+      }
+
+    } catch (err) {
+      console.error("Error loading or parsing CSV:", err);
+      alert("⚠️ Failed to load map data.");
+    }
+  }
+
+  initMap();
+</script>
