@@ -6,7 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    html, body, #map { height: 100%; margin: 0; }
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
   </style>
 </head>
 <body>
@@ -36,16 +40,18 @@
 
       const data = await fetchCSV();
 
-      data.forEach(row => {
+      data.forEach((row, i) => {
         const lat = parseFloat(row["Latitude"]);
         const lng = parseFloat(row["Longitude"]);
-        const name = row["Name"] || "Anonymous";
-        const address = row["Birthplace address"] || "Unknown";
+        const name = row["Name, and Date of Birth (Optional)"] || `Entry ${i + 1}`;
+        const address = row["Birthplace address (Country, City, State)"] || "Unknown";
 
         if (!isNaN(lat) && !isNaN(lng)) {
           L.marker([lat, lng])
             .addTo(map)
             .bindPopup(`<strong>${name}</strong><br>${address}`);
+        } else {
+          console.warn(`Skipping row ${i + 1}: invalid coordinates`, row);
         }
       });
     }
@@ -54,4 +60,5 @@
   </script>
 </body>
 </html>
+
 
